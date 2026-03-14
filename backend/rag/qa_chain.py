@@ -6,7 +6,8 @@ import logging
 from typing import Dict, Any
 
 from langchain.chains import RetrievalQA
-from langchain_community.llms import HuggingFaceHub
+from langchain_huggingface import HuggingFacePipeline
+from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline
 from langchain_core.prompts import PromptTemplate
 
 # For getting the vector store retriever
@@ -16,36 +17,42 @@ from backend.rag.vector_store import load_vector_store
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-def get_llm() -> HuggingFaceHub:
+def get_llm() -> HuggingFacePipeline:
     """
     Initializes and returns the language model to be used in the QA Chain.
-    This setup uses a HuggingFace free inference endpoint as the LLM.
-    
-    Ensure `HUGGINGFACEHUB_API_TOKEN` is set in the environment variables.
+    This implementation uses a local HuggingFacePipeline to avoid brittle remote API API issues
+    like the 'InferenceClient' missing post method error in LangChain.
     
     Returns:
-        HuggingFaceHub: The initialized language model.
+        HuggingFacePipeline: The initialized local language model wrapper.
     """
-    # Use a solid instruction-tuned model for text generation
-    repo_id = "mistralai/Mistral-7B-Instruct-v0.2"
+    # Using a smaller, efficient model like Microsoft's Phi-2 or a tiny Llama variant 
+    # since we are moving to a pipeline approach instead of an external API. 
+    # "TinyLlama/TinyLlama-1.1B-Chat-v1.0" is fast and lightweight for CPU/basic GPU RAG setups.
+    repo_id = "TinyLlama/TinyLlama-1.1B-Chat-v1.0"
     
-    # Check if the API token is available
-    if not os.environ.get("HUGGINGFACEHUB_API_TOKEN"):
-        logger.warning("HUGGINGFACEHUB_API_TOKEN is not set in environment variables. Model initialization may fail.")
-    
-    logger.info(f"Initializing Language Model: {repo_id}")
+    logger.info(f"Initializing Local Language Model Pipeline: {repo_id}")
     
     try:
-        llm = HuggingFaceHub(
-            repo_id=repo_id,
-            huggingfacehub_api_token=os.environ.get("HUGGINGFACEHUB_API_TOKEN"),
-            model_kwargs={
-                "max_new_tokens": 512,
-                "temperature": 0.1, # Low temperature for more factual, document-based answers
-                "repetition_penalty": 1.1,
-            }
+        # Load the tokenizer and model
+        tokenizer = AutoTokenizer.from_pretrained(repo_id)
+        model = AutoModelForCausalLM.from_pretrained(repo_id)
+        
+        # Create a text-generation pipeline
+        pipe = pipeline(
+            "text-generation",
+            model=model,
+            tokenizer=tokenizer,
+            max_new_tokens=256,
+            temperature=0.1, # Low temperature for factual RAG answering
+            repetition_penalty=1.1,
+            do_sample=True
         )
-        logger.info("Successfully initialized Language Model.")
+        
+        # Wrap the pipeline in LangChain's HuggingFacePipeline
+        llm = HuggingFacePipeline(pipeline=pipe)
+        
+        logger.info("Successfully initialized Local Language Model Pipeline.")
         return llm
     except Exception as e:
         logger.error(f"Failed to initialize Language Model: {e}")
@@ -126,6 +133,9 @@ def ask_question(query: str) -> str:
         # Extract the answer and source documents
         answer = result.get('result', "No answer could be generated.")
         source_docs = result.get('source_documents', [])
+
+        if "Helpful Answer:" in answer:
+            answer = answer.split("Helpful Answer:")[-1].strip()
         
         logger.info(f"Retrieved {len(source_docs)} relevant document chunk(s) to answer the query.")
         logger.info(f"Generated Response: {answer}")
