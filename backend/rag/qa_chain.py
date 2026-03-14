@@ -69,17 +69,26 @@ def create_qa_chain() -> RetrievalQA:
 
         llm = get_llm()
 
-        template = """You are a helpful and precise Campus Information AI assistant.
+        template = """
+You are a Smart Campus AI Assistant.
 
-Use the following retrieved context to answer the question.
-If the answer is not in the context, say you do not know.
+Answer the user's question using ONLY the provided context.
+
+Rules:
+- Do NOT copy the context text directly.
+- Summarize the information clearly.
+- Do NOT repeat sections.
+- Keep the answer concise (3–5 sentences).
+- If the answer is not in the context, say you don't know.
 
 Context:
 {context}
 
-Question: {question}
+Question:
+{question}
 
-Helpful Answer:"""
+Answer:
+"""
 
         prompt = PromptTemplate.from_template(template)
 
