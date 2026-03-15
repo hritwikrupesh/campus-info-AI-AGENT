@@ -251,15 +251,19 @@ def main():
                 answer = response_data["answer"]
                 sources = response_data.get("sources", [])
                 
-            # Typing animation: reveal the AI response word by word
-            display_text = ""
-            words = answer.split()
+            # Typing animation: reveal the AI response progressively
+            import re
             
-            if len(words) > 0:
-                for word in words:
-                    display_text += word + " "
-                    ai_placeholder.markdown(build_ai_bubble_html(display_text), unsafe_allow_html=True)
-                    time.sleep(0.04)
+            display_text = ""
+            # Preserve all whitespace boundaries (like newlines) to keep formatting
+            tokens = re.split(r'(\s+)', answer)
+            
+            if len(tokens) > 0:
+                for token in tokens:
+                    display_text += token
+                    if token.strip(): # Only animate and sleep on actual words
+                        ai_placeholder.markdown(build_ai_bubble_html(display_text), unsafe_allow_html=True)
+                        time.sleep(0.03)
             else:
                 # If the response is inherently empty (e.g. some whitespace error)
                 ai_placeholder.markdown(build_ai_bubble_html(answer), unsafe_allow_html=True)
