@@ -7,21 +7,20 @@ from langchain_huggingface import HuggingFacePipeline
 from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline
 from langchain_core.prompts import PromptTemplate
 
-# For getting the vector store retriever
 from backend.rag.vector_store import load_vector_store
 
-# Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.INFO,
+                    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
 logger = logging.getLogger(__name__)
 
-# Global QA chain (cached so model doesn't reload every request)
+# Cache QA chain (prevents reloading model every request)
 qa_chain = None
 
 
 def get_llm() -> HuggingFacePipeline:
     """
-    Initializes and returns the language model used in the QA Chain.
-    Uses a local HuggingFace pipeline (TinyLlama).
+    Initialize the local TinyLlama model using HuggingFace pipeline.
     """
 
     repo_id = "TinyLlama/TinyLlama-1.1B-Chat-v1.0"
@@ -35,10 +34,11 @@ def get_llm() -> HuggingFacePipeline:
             "text-generation",
             model=model,
             tokenizer=tokenizer,
-            max_new_tokens=256,
-            temperature=0.1,
-            repetition_penalty=1.1,
-            do_sample=True
+            max_new_tokens=200,
+            temperature=0.2,
+            repetition_penalty=1.2,
+            do_sample=True,
+            return_full_text=False
         )
 
         llm = HuggingFacePipeline(pipeline=pipe)
@@ -53,8 +53,7 @@ def get_llm() -> HuggingFacePipeline:
 
 def create_qa_chain() -> RetrievalQA:
     """
-    Loads vector database, creates retriever, initializes LLM,
-    and builds the RetrievalQA chain.
+    Build the RetrievalQA chain using the vector database and LLM.
     """
 
     logger.info("Initializing RetrievalQA Chain...")
@@ -108,9 +107,37 @@ Answer:
         raise
 
 
+def clean_llm_output(answer: str) -> str:
+    """
+    Cleans messy LLM output and removes prompt leakage.
+    """
+
+    if not answer:
+        return "I couldn't generate an answer."
+
+    # Extract first answer
+    if "Answer:" in answer:
+        answer = answer.split("Answer:")[1]
+
+    # Remove repeated sections
+    stop_words = ["Context:", "Question:", "You are"]
+
+    for word in stop_words:
+        if word in answer:
+            answer = answer.split(word)[0]
+
+    # Remove duplicate answer loops
+    answer = answer.strip()
+
+    # Hard length limit to avoid runaway generation
+    answer = answer[:700]
+
+    return answer
+
+
 def ask_question(query: str) -> str:
     """
-    Runs the user query through the RAG pipeline and returns an answer.
+    Run the query through the RAG pipeline.
     """
 
     logger.info(f"Received User Query: '{query}'")
@@ -118,19 +145,17 @@ def ask_question(query: str) -> str:
     try:
         global qa_chain
 
-        # Only initialize once
+        # Initialize QA chain only once
         if qa_chain is None:
             logger.info("QA chain not initialized. Creating now...")
             qa_chain = create_qa_chain()
 
         result = qa_chain.invoke({"query": query})
 
-        answer = result.get("result", "No answer could be generated.")
+        raw_answer = result.get("result", "")
         source_docs = result.get("source_documents", [])
 
-        # Clean output
-        if "Helpful Answer:" in answer:
-            answer = answer.split("Helpful Answer:")[-1].strip()
+        answer = clean_llm_output(raw_answer)
 
         logger.info(f"Retrieved {len(source_docs)} relevant document chunk(s).")
         logger.info(f"Generated Response: {answer}")
@@ -139,7 +164,7 @@ def ask_question(query: str) -> str:
 
     except Exception as e:
         logger.error(f"Failed to generate answer for query '{query}': {e}")
-        return f"I encountered an error trying to process your request. Details: {e}"
+        return "Sorry, I encountered an error while processing your request."
 
 
 if __name__ == "__main__":
