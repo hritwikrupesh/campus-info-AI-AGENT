@@ -185,10 +185,12 @@ def render_sidebar():
         
         # Example questions buttons
         examples = [
-            "Tell me about placements",
-            "What courses are offered?",
+            "What courses are offered at ANITS?",
+            "Tell me about placements.",
             "What facilities are available on campus?",
-            "Who are the faculty members?"
+            "How many departments does the college have?",
+            "What training programs are provided for students?",
+            "What infrastructure facilities are available?"
         ]
         
         for ex in examples:
