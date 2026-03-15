@@ -113,12 +113,21 @@ def build_vector_database(chunks: List[Document], embeddings: HuggingFaceEmbeddi
     logger.info("Embedding chunks...")
     
     try:
-        # Chroma dynamically accepts chunks and creates the local index in vector_db/
-        vector_store = Chroma.from_documents(
-            documents=chunks,
-            embedding=embeddings,
+        # Initialize an empty Chroma vector store
+        vector_store = Chroma(
+            embedding_function=embeddings,
             persist_directory=VECTOR_DB_DIR
         )
+        
+        # Manually batch the document insertions to prevent Chroma's 5461 maximum batch size limit error
+        batch_size = 5000
+        for i in range(0, len(chunks), batch_size):
+            batch = chunks[i:i + batch_size]
+            logger.info(f"Adding chunks {i} to {i + len(batch)}...")
+            vector_store.add_documents(batch)
+            
+        if hasattr(vector_store, "persist"):
+            vector_store.persist()
         
         logger.info(f"\nVector database successfully created at {VECTOR_DB_DIR}/")
         return vector_store

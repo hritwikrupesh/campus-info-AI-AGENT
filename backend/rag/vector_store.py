@@ -15,7 +15,6 @@ VECTOR_DB_DIR = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
     "vector_db"
 )
-COLLECTION_NAME = "campus_info_collection"
 
 def create_vector_store(documents: List[Document]) -> Chroma:
     """
@@ -31,7 +30,6 @@ def create_vector_store(documents: List[Document]) -> Chroma:
     if not documents:
         logger.warning("No documents provided to create_vector_store. Returning empty store.")
         return Chroma(
-            collection_name=COLLECTION_NAME,
             embedding_function=get_embedding_model(),
             persist_directory=VECTOR_DB_DIR
         )
@@ -46,8 +44,7 @@ def create_vector_store(documents: List[Document]) -> Chroma:
         vector_store = Chroma.from_documents(
             documents=documents,
             embedding=embedding_model,
-            persist_directory=VECTOR_DB_DIR,
-            collection_name=COLLECTION_NAME
+            persist_directory=VECTOR_DB_DIR
         )
         
         logger.info(f"Successfully stored {len(documents)} document chunk(s) in the vector database.")
@@ -73,8 +70,7 @@ def load_vector_store() -> Chroma:
         embedding_model = get_embedding_model()
         vector_store = Chroma(
             persist_directory=VECTOR_DB_DIR,
-            embedding_function=embedding_model,
-            collection_name=COLLECTION_NAME
+            embedding_function=embedding_model
         )
         
         logger.info("Successfully loaded the vector store.")

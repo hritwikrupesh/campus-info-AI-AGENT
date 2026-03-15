@@ -25,12 +25,15 @@ class ChatRequest(BaseModel):
     """
     query: str
 
+from typing import List
+
 class ChatResponse(BaseModel):
     """
     Schema for the generated API response.
     """
     query: str
     answer: str
+    sources: List[str] = []
 
 @app.get("/health")
 def health_check():
@@ -71,13 +74,14 @@ def chat_endpoint(request: ChatRequest):
     
     try:
         # Utilize the implemented RAG chain asking functionality
-        answer = ask_question(user_query)
+        rag_response = ask_question(user_query)
         
         logger.info(f"Successfully generated answer for query: '{user_query}'")
         
         return ChatResponse(
             query=user_query,
-            answer=answer
+            answer=rag_response["answer"],
+            sources=rag_response.get("sources", [])
         )
         
     except Exception as e:

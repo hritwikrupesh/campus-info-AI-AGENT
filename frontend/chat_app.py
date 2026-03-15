@@ -115,7 +115,7 @@ def apply_custom_css():
     """, unsafe_allow_html=True)
 
 # Helper function to render a single chat message
-def render_message(role: str, content: str):
+def render_message(role: str, content: str, sources: list = None):
     """Render a chat bubble using custom HTML."""
     if role == "user":
         html = f'''
@@ -124,9 +124,14 @@ def render_message(role: str, content: str):
             <div class="user-bubble">{content}</div>
         </div>
         '''
+        st.markdown(html, unsafe_allow_html=True)
     else:
         html = build_ai_bubble_html(content)
-    st.markdown(html, unsafe_allow_html=True)
+        st.markdown(html, unsafe_allow_html=True)
+        if sources:
+            st.markdown("\n**Sources**")
+            for url in sources:
+                st.markdown(f"• [{url}]({url})")
 
 def build_ai_bubble_html(content: str) -> str:
     """Build the HTML for the AI bubble (useful for iterative typing)."""
@@ -145,19 +150,22 @@ def init_session_state():
     if "sidebar_prompt" not in st.session_state:
         st.session_state.sidebar_prompt = None
 
-def get_ai_response(query: str) -> str:
-    """Send query to backend API and return the response."""
+def get_ai_response(query: str) -> dict:
+    """Send query to backend API and return the full response data including sources."""
     try:
         response = requests.post(API_URL, json={"query": query}, timeout=400)
         response.raise_for_status()
         data = response.json()
-        return data.get("answer", "I received a response, but it didn't contain an answer.")
+        return {
+            "answer": data.get("answer", "I received a response, but it didn't contain an answer."),
+            "sources": data.get("sources", [])
+        }
     except requests.exceptions.ConnectionError:
-        return "⚠️ Error: Could not connect to the Campus AI API. Please ensure the backend server is running."
+        return {"answer": "⚠️ Error: Could not connect to the Campus AI API. Please ensure the backend server is running.", "sources": []}
     except requests.exceptions.Timeout:
-        return "⚠️ Error: The request timed out. The server might be overloaded."
+        return {"answer": "⚠️ Error: The request timed out. The server might be overloaded.", "sources": []}
     except Exception as e:
-        return f"⚠️ Error: An unexpected error occurred: {str(e)}"
+        return {"answer": f"⚠️ Error: An unexpected error occurred: {str(e)}", "sources": []}
 
 def render_sidebar():
     """Render the sidebar with title, clear chat, examples, and branding."""
@@ -215,7 +223,7 @@ def main():
     # Render all previous messages in history
     with chat_history_container:
         for msg in st.session_state.messages:
-            render_message(msg["role"], msg["content"])
+            render_message(msg["role"], msg["content"], msg.get("sources"))
 
     # Chat input box
     chat_input_prompt = st.chat_input("Ask a question about the campus...")
@@ -239,7 +247,9 @@ def main():
             
             # Show a spinner while fetching data from API
             with st.spinner("Campus AI is thinking..."):
-                answer = get_ai_response(active_prompt)
+                response_data = get_ai_response(active_prompt)
+                answer = response_data["answer"]
+                sources = response_data.get("sources", [])
                 
             # Typing animation: reveal the AI response word by word
             display_text = ""
@@ -253,10 +263,15 @@ def main():
             else:
                 # If the response is inherently empty (e.g. some whitespace error)
                 ai_placeholder.markdown(build_ai_bubble_html(answer), unsafe_allow_html=True)
+                
+            if sources:
+                st.markdown("\n**Sources**")
+                for url in sources:
+                    st.markdown(f"• [{url}]({url})")
             
             # Save the new interaction to session state
             st.session_state.messages.append({"role": "user", "content": active_prompt})
-            st.session_state.messages.append({"role": "ai", "content": answer})
+            st.session_state.messages.append({"role": "ai", "content": answer, "sources": sources})
 
 if __name__ == "__main__":
     main()

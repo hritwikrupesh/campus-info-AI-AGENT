@@ -128,9 +128,9 @@ def clean_llm_output(answer: str) -> str:
     return answer
 
 
-def ask_question(query: str) -> str:
+def ask_question(query: str) -> dict:
     """
-    Run the query through the RAG pipeline.
+    Run the query through the RAG pipeline and return answer with sources.
     """
 
     logger.info(f"Received User Query: '{query}'")
@@ -149,17 +149,30 @@ def ask_question(query: str) -> str:
         source_docs = result.get("source_documents", [])
 
         answer = clean_llm_output(raw_answer)
+        
+        # Extract unique URLs from metadata robustly
+        sources = []
+        for doc in source_docs:
+            url = doc.metadata.get("url")
+            if url and url not in sources:
+                sources.append(url)
 
         logger.info(f"Retrieved {len(source_docs)} relevant document chunk(s).")
         logger.info(f"Generated Response: {answer}")
 
-        return answer
+        return {
+            "answer": answer,
+            "sources": sources
+        }
 
     except Exception as e:
         import traceback
         traceback.print_exc()
         logger.error(f"Failed to generate answer for query '{query}': {e}")
-        return "Sorry, I encountered an error while processing your request."
+        return {
+            "answer": "Sorry, I encountered an error while processing your request.",
+            "sources": []
+        }
 
 
 if __name__ == "__main__":
@@ -175,7 +188,8 @@ if __name__ == "__main__":
 
     try:
         response = ask_question(test_query)
-        print(f"\nAnswer: {response}\n")
+        print(f"\nAnswer: {response['answer']}")
+        print(f"Sources: {response['sources']}\n")
 
     except Exception as e:
         print(f"\nError running QA test: {e}\n")
