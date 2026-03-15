@@ -1,10 +1,11 @@
 from dotenv import load_dotenv
+import os
+
 load_dotenv()
 
 import logging
 from langchain.chains import RetrievalQA
-from langchain_huggingface import HuggingFacePipeline
-from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline
+from langchain_groq import ChatGroq
 from langchain_core.prompts import PromptTemplate
 
 from backend.rag.vector_store import load_vector_store
@@ -18,32 +19,24 @@ logger = logging.getLogger(__name__)
 qa_chain = None
 
 
-def get_llm() -> HuggingFacePipeline:
+def get_llm() -> ChatGroq:
     """
-    Initialize the local TinyLlama model using HuggingFace pipeline.
+    Initialize the fast hosted Groq API (llama-3.1-8b-instant).
     """
-
-    repo_id = "TinyLlama/TinyLlama-1.1B-Chat-v1.0"
-    logger.info(f"Initializing Local Language Model Pipeline: {repo_id}")
+    logger.info("Initializing Groq Language Model Pipeline: llama-3.1-8b-instant")
 
     try:
-        tokenizer = AutoTokenizer.from_pretrained(repo_id)
-        model = AutoModelForCausalLM.from_pretrained(repo_id)
+        groq_api_key = os.getenv("GROQ_API_KEY")
+        if not groq_api_key:
+            raise ValueError("GROQ_API_KEY environment variable not found.")
 
-        pipe = pipeline(
-            "text-generation",
-            model=model,
-            tokenizer=tokenizer,
-            max_new_tokens=200,
+        llm = ChatGroq(
+            model="llama-3.1-8b-instant",
             temperature=0.2,
-            repetition_penalty=1.2,
-            do_sample=True,
-            return_full_text=False
+            api_key=groq_api_key
         )
 
-        llm = HuggingFacePipeline(pipeline=pipe)
-
-        logger.info("Successfully initialized Local Language Model Pipeline.")
+        logger.info("Successfully initialized Groq Language Model Pipeline.")
         return llm
 
     except Exception as e:
@@ -53,7 +46,7 @@ def get_llm() -> HuggingFacePipeline:
 
 def create_qa_chain() -> RetrievalQA:
     """
-    Build the RetrievalQA chain using the vector database and LLM.
+    Build the RetrievalQA chain using the vector database and Groq LLM.
     """
 
     logger.info("Initializing RetrievalQA Chain...")
@@ -163,6 +156,8 @@ def ask_question(query: str) -> str:
         return answer
 
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         logger.error(f"Failed to generate answer for query '{query}': {e}")
         return "Sorry, I encountered an error while processing your request."
 
