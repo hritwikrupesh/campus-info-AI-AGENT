@@ -55,8 +55,8 @@ def create_qa_chain() -> RetrievalQA:
         vector_store = load_vector_store()
 
         retriever = vector_store.as_retriever(
-            search_type="similarity",
-            search_kwargs={"k": 4}
+            search_type="mmr",
+            search_kwargs={"k": 25, "fetch_k": 70}
         )
 
         llm = get_llm()
@@ -68,9 +68,9 @@ Answer the user's question using ONLY the provided context.
 
 Rules:
 - Do NOT copy the context text directly.
-- Summarize the information clearly.
+- Summarize the information clearly, but if asked for a list of items (like all departments or programs), provide the COMPLETE list without omitting any.
 - Do NOT repeat sections.
-- Keep the answer concise (3–5 sentences).
+- Keep the answer concise unless listing items.
 - If the answer is not in the context, say you don't know.
 
 Context:
@@ -143,7 +143,14 @@ def ask_question(query: str) -> dict:
             logger.info("QA chain not initialized. Creating now...")
             qa_chain = create_qa_chain()
 
-        result = qa_chain.invoke({"query": query})
+        # Semantic query expansion handling to fix vocabulary mismatch
+        # e.g., 'departments' in user queries vs 'programs' in actual college data documents
+        search_query = query
+        lower_query = query.lower()
+        if "department" in lower_query or "branch" in lower_query:
+            search_query += " undergraduate B.Tech postgraduate M.Tech programs offered"
+
+        result = qa_chain.invoke({"query": search_query})
 
         raw_answer = result.get("result", "")
         source_docs = result.get("source_documents", [])
