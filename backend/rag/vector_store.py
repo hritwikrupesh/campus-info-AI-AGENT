@@ -54,13 +54,20 @@ def create_vector_store(documents: List[Document]) -> Chroma:
         logger.error(f"Failed to create vector store: {e}")
         raise
 
+_vector_store_instance = None
+
 def load_vector_store() -> Chroma:
     """
     Loads an existing persisted Chroma database from the local directory.
+    Uses a global cache to ensure it only loads once per process.
 
     Returns:
         Chroma: The loaded Chroma vector store instance.
     """
+    global _vector_store_instance
+    if _vector_store_instance is not None:
+        return _vector_store_instance
+        
     logger.info(f"Loading existing vector store from: {VECTOR_DB_DIR}")
     
     if not os.path.exists(VECTOR_DB_DIR):
@@ -74,6 +81,7 @@ def load_vector_store() -> Chroma:
         )
         
         logger.info("Successfully loaded the vector store.")
+        _vector_store_instance = vector_store
         return vector_store
         
     except Exception as e:

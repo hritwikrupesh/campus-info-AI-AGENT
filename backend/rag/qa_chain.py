@@ -56,7 +56,7 @@ def create_qa_chain() -> RetrievalQA:
 
         retriever = vector_store.as_retriever(
             search_type="mmr",
-            search_kwargs={"k": 25, "fetch_k": 70}
+            search_kwargs={"k": 8, "fetch_k": 25}
         )
 
         llm = get_llm()
@@ -67,11 +67,12 @@ You are a Smart Campus AI Assistant.
 Answer the user's question using ONLY the provided context.
 
 Rules:
+- Give structured answers using clear formatting.
+- Include complete lists where needed without omitting any items.
+- Provide complete and detailed information based on the context.
+- Avoid unnecessary "I don't know" responses if partial information exists in the context.
 - Do NOT copy the context text directly.
-- Summarize the information clearly, but if asked for a list of items (like all departments or programs), provide the COMPLETE list without omitting any.
 - Do NOT repeat sections.
-- Keep the answer concise unless listing items.
-- If the answer is not in the context, say you don't know.
 
 Context:
 {context}
@@ -148,7 +149,13 @@ def ask_question(query: str) -> dict:
         search_query = query
         lower_query = query.lower()
         if "department" in lower_query or "branch" in lower_query:
-            search_query += " undergraduate B.Tech postgraduate M.Tech programs offered"
+            search_query += " programs branches undergraduate B.Tech postgraduate M.Tech offered"
+        if "course" in lower_query:
+            search_query += " programs curriculum"
+        if "placement" in lower_query:
+            search_query += " training recruitment"
+        if "principal" in lower_query:
+            search_query += " director administration"
 
         result = qa_chain.invoke({"query": search_query})
 
@@ -164,7 +171,7 @@ def ask_question(query: str) -> dict:
             if url and url not in sources:
                 sources.append(url)
                 
-        # Limit the number of sources to 2
+        # Limit the number of sources to top 2
         sources = sources[:2]
 
         logger.info(f"Retrieved {len(source_docs)} relevant document chunk(s).")

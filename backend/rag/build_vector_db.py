@@ -4,10 +4,10 @@ import logging
 import shutil
 from typing import List
 
-from langchain.docstore.document import Document
+from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_chroma import Chroma
+from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_community.vectorstores import Chroma
 
 # --- Configuration ---
 RAW_DATA_DIR = "data/raw"
@@ -15,8 +15,8 @@ VECTOR_DB_DIR = "vector_db"
 EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
 
 # Chunking Configuration
-CHUNK_SIZE = 800
-CHUNK_OVERLAP = 150
+CHUNK_SIZE = 1000
+CHUNK_OVERLAP = 200
 
 # Setup Logging
 logging.basicConfig(

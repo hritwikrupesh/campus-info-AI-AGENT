@@ -10,19 +10,27 @@ logger = logging.getLogger(__name__)
 # Constants
 MODEL_NAME = "all-MiniLM-L6-v2"
 
+_embedding_model_instance = None
+
 def get_embedding_model() -> HuggingFaceEmbeddings:
     """
     Load and return the embedding model.
     Utilizes sentence-transformers via LangChain's HuggingFaceEmbeddings wrapper.
+    It caches the model in a global variable to avoid reloading it.
     
     Returns:
         HuggingFaceEmbeddings: The loaded sentence-transformer embedding model.
     """
+    global _embedding_model_instance
+    if _embedding_model_instance is not None:
+        return _embedding_model_instance
+        
     logger.info(f"Loading embedding model: {MODEL_NAME}...")
     try:
         # Use HuggingFaceEmbeddings to load sentence-transformers models natively for LangChain
         model = HuggingFaceEmbeddings(model_name=MODEL_NAME)
         logger.info("Successfully loaded the embedding model.")
+        _embedding_model_instance = model
         return model
     except Exception as e:
         logger.error(f"Failed to load embedding model {MODEL_NAME}. Error: {e}")
