@@ -163,6 +163,9 @@ def ask_question(query: str) -> dict:
             url = doc.metadata.get("url")
             if url and url not in sources:
                 sources.append(url)
+                
+        # Limit the number of sources to 2
+        sources = sources[:2]
 
         logger.info(f"Retrieved {len(source_docs)} relevant document chunk(s).")
         logger.info(f"Generated Response: {answer}")

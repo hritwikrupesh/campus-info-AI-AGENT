@@ -9,7 +9,7 @@ st.set_page_config(
     page_title="Smart Campus AI Assistant",
     page_icon="🎓",
     layout="wide",
-    initial_sidebar_state="collapsed"
+    initial_sidebar_state="expanded"
 )
 
 # --- Custom CSS ---
@@ -32,17 +32,35 @@ def apply_custom_css():
         [data-testid="block-container"] {
             max-width: 950px;
             margin: auto;
-            margin-top: 2rem;
+            margin-top: 10rem; /* Increased margin to avoid overlap with header */
             margin-bottom: 2rem;
             padding: 2rem;
+            padding-top: 4rem;
             background: rgba(255, 255, 255, 0.98);
             border-radius: 12px;
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
         }
 
-        /* Hide the top header added by Streamlit */
+        /* Make the top header background dark and smaller so options are visible */
         header {
-            visibility: hidden;
+            background-color: #0f172a !important;
+            height: 2.5rem !important; /* Make the size of the header somewhat small */
+        }
+
+        /* Make the header text and icons stand out against the dark background */
+        [data-testid="stHeader"], [data-testid="stHeader"] span, [data-testid="stHeader"] a {
+            color: #ffffff !important;
+        }
+
+        header svg {
+            color: #ffffff !important;
+            fill: #ffffff !important;
+            stroke: #ffffff !important;
+        }
+        
+        /* Specific override for Streamlit button icons */
+        [data-testid="stHeader"] button svg {
+            fill: #ffffff !important;
         }
 
         /* Title styling */
@@ -51,6 +69,7 @@ def apply_custom_css():
             font-size: 2.5rem;
             font-weight: 700;
             color: #1e293b;
+            margin-top: 2rem;
             margin-bottom: 0.5rem;
         }
 
